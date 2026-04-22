@@ -1,0 +1,15 @@
+[
+  { "from": "N1", "to": "N2",  "distance": 30, "time": 1, "type": "corridor", "accessibility": true,  "crowd": 1 },
+  { "from": "N2", "to": "N3",  "distance": 35, "time": 1, "type": "corridor", "accessibility": true,  "crowd": 2 },
+  { "from": "N2", "to": "N4",  "distance": 40, "time": 1, "type": "corridor", "accessibility": true,  "crowd": 5 },
+  { "from": "N3", "to": "N6",  "distance": 35, "time": 1, "type": "corridor", "accessibility": true,  "crowd": 1 },
+  { "from": "N3", "to": "N5",  "distance": 50, "time": 2, "type": "corridor", "accessibility": true,  "crowd": 1 },
+  { "from": "N4", "to": "N5",  "distance": 70, "time": 2, "type": "corridor", "accessibility": true,  "crowd": 3 },
+  { "from": "N5", "to": "N7",  "distance": 10, "time": 2, "type": "lift",     "accessibility": true,  "crowd": 1 },
+  { "from": "N6", "to": "N8",  "distance": 15, "time": 3, "type": "stairs",   "accessibility": false, "crowd": 1 },
+  { "from": "N7", "to": "N9",  "distance": 60, "time": 2, "type": "corridor", "accessibility": true,  "crowd": 2 },
+  { "from": "N7", "to": "N10", "distance": 45, "time": 1, "type": "corridor", "accessibility": true,  "crowd": 1 },
+  { "from": "N8", "to": "N10", "distance": 35, "time": 1, "type": "corridor", "accessibility": true,  "crowd": 2 },
+  { "from": "N9", "to": "N11", "distance": 40, "time": 1, "type": "corridor", "accessibility": true,  "crowd": 1 },
+  { "from": "N9", "to": "N10", "distance": 80, "time": 3, "type": "corridor", "accessibility": true,  "crowd": 4 }
+]
