@@ -57,17 +57,24 @@ All colors MUST be HSL.
     /* Hospital nav theme */
     --primary: 200 95% 39%;
     --primary-foreground: 0 0% 100%;
-    --map-bg: 200 40% 97%;
-    --map-grid: 200 30% 90%;
-    --map-building: 0 0% 100%;
-    --edge: 215 20% 70%;
+
+    /* Floor plan */
+    --map-bg: 210 40% 96%;
+    --map-grid: 210 25% 86%;
+    --wall: 215 25% 25%;
+    --door: 38 92% 50%;
+    --corridor-fill: 200 30% 90%;
+    --corridor-grid: 200 20% 80%;
+    --room-fill: 0 0% 100%;
+    --room-stroke: 215 20% 65%;
+    --lift-fill: 38 95% 92%;
+    --lift-stroke: 38 92% 45%;
+    --stairs-fill: 280 65% 94%;
+    --stairs-stroke: 280 60% 50%;
     --path: 142 71% 42%;
+    --path-glow: 142 90% 85%;
     --source: 200 95% 39%;
     --destination: 0 84% 55%;
-    --node-room: 200 90% 55%;
-    --node-corridor: 215 16% 65%;
-    --node-lift: 38 92% 50%;
-    --node-stairs: 280 70% 60%;
   }
 
   .dark {
