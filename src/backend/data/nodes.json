@@ -1,0 +1,13 @@
+[
+  { "id": "N1", "name": "Main Entrance",       "x":  80, "y": 420, "floor": 1, "type": "room" },
+  { "id": "N2", "name": "Reception",           "x": 220, "y": 420, "floor": 1, "type": "corridor" },
+  { "id": "N3", "name": "Pharmacy",            "x": 380, "y": 420, "floor": 1, "type": "room" },
+  { "id": "N4", "name": "Emergency Ward",      "x": 220, "y": 280, "floor": 1, "type": "room" },
+  { "id": "N5", "name": "Lift (Floor 1)",      "x": 540, "y": 280, "floor": 1, "type": "lift" },
+  { "id": "N6", "name": "Stairs (Floor 1)",    "x": 540, "y": 420, "floor": 1, "type": "stairs" },
+  { "id": "N7", "name": "Lift (Floor 2)",      "x": 540, "y": 280, "floor": 2, "type": "lift" },
+  { "id": "N8", "name": "Stairs (Floor 2)",    "x": 540, "y": 420, "floor": 2, "type": "stairs" },
+  { "id": "N9", "name": "Cardiology",          "x": 220, "y": 280, "floor": 2, "type": "room" },
+  { "id": "N10","name": "Radiology",           "x": 380, "y": 420, "floor": 2, "type": "room" },
+  { "id": "N11","name": "ICU",                 "x":  80, "y": 280, "floor": 2, "type": "room" }
+]

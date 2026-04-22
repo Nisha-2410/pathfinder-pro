@@ -53,6 +53,21 @@ All colors MUST be HSL.
     --sidebar-border: 220 13% 91%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Hospital nav theme */
+    --primary: 200 95% 39%;
+    --primary-foreground: 0 0% 100%;
+    --map-bg: 200 40% 97%;
+    --map-grid: 200 30% 90%;
+    --map-building: 0 0% 100%;
+    --edge: 215 20% 70%;
+    --path: 142 71% 42%;
+    --source: 200 95% 39%;
+    --destination: 0 84% 55%;
+    --node-room: 200 90% 55%;
+    --node-corridor: 215 16% 65%;
+    --node-lift: 38 92% 50%;
+    --node-stairs: 280 70% 60%;
   }
 
   .dark {
