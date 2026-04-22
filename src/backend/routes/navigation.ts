@@ -10,6 +10,7 @@ export interface NodeT {
   y: number;
   floor: number;
   type: "room" | "corridor" | "lift" | "stairs";
+  rect?: { x: number; y: number; w: number; h: number };
 }
 
 export interface EdgeT {
