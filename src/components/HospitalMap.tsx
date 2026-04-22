@@ -181,22 +181,26 @@ function routeBetween(a: NodeT, b: NodeT, graph: ReturnType<typeof corridorGraph
 
 export default function HospitalMap({ floor, path, source, destination }: Props) {
   const floorNodes = NODES.filter((n) => n.floor === floor);
+  const graph = corridorGraph(floor);
 
-  // Build path polyline restricted to this floor, routed through corridors.
-  const segments: { x: number; y: number }[][] = [];
+  const segments: Pt[][] = [];
   for (let i = 0; i < path.length - 1; i++) {
     const a = NODES.find((x) => x.id === path[i])!;
     const b = NODES.find((x) => x.id === path[i + 1])!;
     if (a.floor !== floor || b.floor !== floor) continue;
-    segments.push(routeBetween(a, b));
+    segments.push(routeBetween(a, b, graph));
   }
-  // Flatten consecutive segments into one polyline
-  const polyPoints: { x: number; y: number }[] = [];
+  const polyPoints: Pt[] = [];
   segments.forEach((seg, i) => {
     if (i === 0) polyPoints.push(...seg);
     else polyPoints.push(...seg.slice(1));
   });
-  const polyline = polyPoints.map((p) => `${p.x},${p.y}`).join(" ");
+  const cleaned: Pt[] = [];
+  for (const p of polyPoints) {
+    const last = cleaned[cleaned.length - 1];
+    if (!last || Math.abs(last.x - p.x) > 0.5 || Math.abs(last.y - p.y) > 0.5) cleaned.push(p);
+  }
+  const polyline = cleaned.map((p) => `${p.x},${p.y}`).join(" ");
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
