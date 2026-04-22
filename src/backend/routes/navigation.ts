@@ -48,10 +48,10 @@ function edgeWeight(e: EdgeT, mode: Mode): number | null {
     case "fastest":
       return e.time + e.crowd * 0.4;
     case "wheelchair":
-      return e.time + (e.type === "lift" ? 0 : 1);
+      return e.time + (e.type === "lift" ? 0 : 1) + (e.crowd * 0.3);
     case "emergency":
-      // ignore crowd, prefer stairs (faster in emergencies), penalize lifts
-      return e.time + (e.type === "lift" ? 3 : 0);
+      // fastest + strongly avoid crowded routes
+      return e.time + e.crowd * 1.5;
   }
 }
 
