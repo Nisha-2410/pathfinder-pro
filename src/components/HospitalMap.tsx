@@ -66,22 +66,117 @@ function doorPoint(n: NodeT): { x: number; y: number } {
   return best?.door ?? { x: cx, y: cy };
 }
 
-// Route a path between two door points through the corridor (orthogonal: room→corridor→room).
-function routeBetween(a: NodeT, b: NodeT): { x: number; y: number }[] {
+type Pt = { x: number; y: number };
+
+// Build a graph of corridor centerline waypoints for a floor.
+function corridorGraph(floor: number): { nodes: Pt[]; adj: Map<number, number[]> } {
+  const rects = CORRIDORS[floor] || [];
+  const ptKey = (p: Pt) => `${Math.round(p.x)},${Math.round(p.y)}`;
+  const nodes: Pt[] = [];
+  const idx = new Map<string, number>();
+  const addNode = (p: Pt) => {
+    const k = ptKey(p);
+    if (idx.has(k)) return idx.get(k)!;
+    idx.set(k, nodes.length);
+    nodes.push(p);
+    return nodes.length - 1;
+  };
+
+  const lines: { a: Pt; b: Pt; horizontal: boolean }[] = rects.map((r) => {
+    if (r.w >= r.h) {
+      const y = r.y + r.h / 2;
+      return { a: { x: r.x, y }, b: { x: r.x + r.w, y }, horizontal: true };
+    } else {
+      const x = r.x + r.w / 2;
+      return { a: { x, y: r.y }, b: { x, y: r.y + r.h }, horizontal: false };
+    }
+  });
+
+  const lineWaypoints: Pt[][] = lines.map((l) => [l.a, l.b]);
+  for (let i = 0; i < lines.length; i++) {
+    for (let j = i + 1; j < lines.length; j++) {
+      const A = lines[i], B = lines[j];
+      const h = A.horizontal ? A : B.horizontal ? B : null;
+      const v = !A.horizontal ? A : !B.horizontal ? B : null;
+      if (!h || !v || h === v) continue;
+      const ix = v.a.x;
+      const iy = h.a.y;
+      const onH = ix >= Math.min(h.a.x, h.b.x) - 0.5 && ix <= Math.max(h.a.x, h.b.x) + 0.5;
+      const onV = iy >= Math.min(v.a.y, v.b.y) - 0.5 && iy <= Math.max(v.a.y, v.b.y) + 0.5;
+      if (onH && onV) {
+        const p = { x: ix, y: iy };
+        lineWaypoints[lines.indexOf(h)].push(p);
+        lineWaypoints[lines.indexOf(v)].push(p);
+      }
+    }
+  }
+
+  const adj = new Map<number, number[]>();
+  const link = (a: number, b: number) => {
+    if (a === b) return;
+    if (!adj.has(a)) adj.set(a, []);
+    if (!adj.has(b)) adj.set(b, []);
+    if (!adj.get(a)!.includes(b)) adj.get(a)!.push(b);
+    if (!adj.get(b)!.includes(a)) adj.get(b)!.push(a);
+  };
+
+  lineWaypoints.forEach((wps, i) => {
+    const horiz = lines[i].horizontal;
+    wps.sort((p, q) => (horiz ? p.x - q.x : p.y - q.y));
+    const ids = wps.map(addNode);
+    for (let k = 0; k < ids.length - 1; k++) link(ids[k], ids[k + 1]);
+  });
+
+  return { nodes, adj };
+}
+
+function snapToCorridor(door: Pt, graph: { nodes: Pt[] }): { snapped: Pt; index: number } {
+  let best = { d: Infinity, snapped: door, index: 0 };
+  graph.nodes.forEach((n, i) => {
+    const d = Math.hypot(n.x - door.x, n.y - door.y);
+    if (d < best.d) best = { d, snapped: n, index: i };
+  });
+  return { snapped: best.snapped, index: best.index };
+}
+
+function bfs(adj: Map<number, number[]>, start: number, end: number): number[] {
+  if (start === end) return [start];
+  const prev = new Map<number, number>();
+  const visited = new Set<number>([start]);
+  const queue = [start];
+  while (queue.length) {
+    const u = queue.shift()!;
+    for (const v of adj.get(u) || []) {
+      if (visited.has(v)) continue;
+      visited.add(v);
+      prev.set(v, u);
+      if (v === end) {
+        const out = [end];
+        let cur = end;
+        while (prev.has(cur)) {
+          cur = prev.get(cur)!;
+          out.unshift(cur);
+        }
+        return out;
+      }
+      queue.push(v);
+    }
+  }
+  return [];
+}
+
+function routeBetween(a: NodeT, b: NodeT, graph: ReturnType<typeof corridorGraph>): Pt[] {
   const da = doorPoint(a);
   const db = doorPoint(b);
-  // Walk vertically/horizontally along corridor centerlines
-  // Use corridor center y for horizontal routing
-  const corridorY = 420; // bottom horizontal center
-  const corridorYTop = 230; // top horizontal center
-  const useTop = (da.y < 300 && db.y < 300);
-  const cy = useTop ? corridorYTop : corridorY;
-  return [
-    da,
-    { x: da.x, y: cy },
-    { x: db.x, y: cy },
-    db,
-  ];
+  if (graph.nodes.length === 0) return [da, db];
+  const sa = snapToCorridor(da, graph);
+  const sb = snapToCorridor(db, graph);
+  const idxPath = bfs(graph.adj, sa.index, sb.index);
+  const corridorPts = idxPath.map((i) => graph.nodes[i]);
+  // L-elbows so room→corridor and corridor→room legs stay orthogonal.
+  const entryElbow: Pt = { x: da.x, y: sa.snapped.y };
+  const exitElbow: Pt = { x: sb.snapped.x, y: db.y };
+  return [da, entryElbow, ...corridorPts, exitElbow, db];
 }
 
 export default function HospitalMap({ floor, path, source, destination }: Props) {
