@@ -1,6 +1,14 @@
 [
   { "id": "N1",  "name": "Main Entrance",      "x": 130, "y": 510, "floor": 1, "type": "room",     "rect": {"x":  60, "y": 450, "w": 140, "h": 110} },
-  { "id": "N2",  "name": "Reception",          "x": 380, "y": 510, "floor": 1, "type": "corridor" },
+ {
+  "id": "N2",
+  "name": "Reception",
+  "x": 380,
+  "y": 380,
+  "floor": 1,
+  "type": "room",
+  "rect": { "x": 320, "y": 330, "w": 120, "h": 100 }
+},
   { "id": "N3",  "name": "Pharmacy",           "x": 380, "y": 510, "floor": 1, "type": "room",     "rect": {"x": 260, "y": 450, "w": 240, "h": 110} },
   { "id": "N4",  "name": "Cafeteria",          "x": 630, "y": 510, "floor": 1, "type": "room",     "rect": {"x": 560, "y": 450, "w": 140, "h": 110} },
   { "id": "N5",  "name": "Emergency Ward",     "x": 130, "y": 320, "floor": 1, "type": "room",     "rect": {"x":  60, "y": 260, "w": 140, "h": 130} },

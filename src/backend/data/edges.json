@@ -1,5 +1,5 @@
 [
-  { "from": "N1",  "to": "N2",  "distance": 30, "time": 1, "type": "corridor", "accessibility": true,  "crowd": 2 },
+  { "from": "N1",  "to": "N5",  "distance": 30, "time": 1, "type": "corridor", "accessibility": true,  "crowd": 2 },
   { "from": "N2",  "to": "N3",  "distance": 35, "time": 1, "type": "corridor", "accessibility": true,  "crowd": 4 },
   { "from": "N3",  "to": "N4",  "distance": 40, "time": 1, "type": "corridor", "accessibility": true,  "crowd": 3 },
   { "from": "N2",  "to": "N5",  "distance": 35, "time": 1, "type": "corridor", "accessibility": true,  "crowd": 5 },

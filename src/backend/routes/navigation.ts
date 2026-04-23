@@ -1,7 +1,7 @@
 import nodes from "../data/nodes.json";
 import edges from "../data/edges.json";
 
-export type Mode = "fastest" | "shortest" | "wheelchair" | "emergency";
+export type Mode = "fastest" | "shortest" | "least_crowded" | "wheelchair" | "emergency";
 
 export interface NodeT {
   id: string;
@@ -27,10 +27,19 @@ export interface RouteRequest {
   source: string;
   destination: string;
   mode: Mode;
+  crowdOverrides?: Record<string, number>;
+}
+
+export interface RouteStep {
+  text: string;
+  floor: number;
+  kind: "start" | "move" | "transition" | "arrival";
+  nodeId?: string;
 }
 
 export interface RouteResponse {
   path: string[];
+  steps: RouteStep[];
   instructions: string[];
   time: number;
   distance: number;
@@ -40,27 +49,35 @@ export const NODES = nodes as NodeT[];
 export const EDGES = edges as EdgeT[];
 
 export const getNode = (id: string) => NODES.find((n) => n.id === id)!;
+export const edgeKey = (a: string, b: string) => [a, b].sort().join(":");
 
-function edgeWeight(e: EdgeT, mode: Mode): number | null {
+function getCrowdLevel(e: EdgeT, crowdOverrides?: Record<string, number>): number {
+  return crowdOverrides?.[edgeKey(e.from, e.to)] ?? e.crowd;
+}
+
+function edgeWeight(e: EdgeT, mode: Mode, crowdOverrides?: Record<string, number>): number | null {
   if (mode === "wheelchair" && !e.accessibility) return null;
+  const crowd = getCrowdLevel(e, crowdOverrides);
   switch (mode) {
     case "shortest":
       return e.distance;
     case "fastest":
-      return e.time + e.crowd * 0.4;
+      return e.time + crowd * 0.4;
+    case "least_crowded":
+      return crowd * 3 + e.time + e.distance * 0.02;
     case "wheelchair":
-      return e.time + (e.type === "lift" ? 0 : 1) + (e.crowd * 0.3);
+      return e.time + (e.type === "lift" ? 0 : 1) + crowd * 0.3;
     case "emergency":
       // fastest + strongly avoid crowded routes
-      return e.time + e.crowd * 1.5;
+      return e.time + crowd * 1.5;
   }
 }
 
-function buildAdj(mode: Mode) {
+function buildAdj(mode: Mode, crowdOverrides?: Record<string, number>) {
   const adj = new Map<string, { to: string; w: number; edge: EdgeT }[]>();
   NODES.forEach((n) => adj.set(n.id, []));
   for (const e of EDGES) {
-    const w = edgeWeight(e, mode);
+    const w = edgeWeight(e, mode, crowdOverrides);
     if (w === null) continue;
     adj.get(e.from)!.push({ to: e.to, w, edge: e });
     adj.get(e.to)!.push({ to: e.from, w, edge: e });
@@ -68,47 +85,81 @@ function buildAdj(mode: Mode) {
   return adj;
 }
 
-function dijkstra(source: string, dest: string, mode: Mode): string[] {
-  const adj = buildAdj(mode);
-  const dist = new Map<string, number>();
-  const prev = new Map<string, string | null>();
-  NODES.forEach((n) => {
-    dist.set(n.id, Infinity);
-    prev.set(n.id, null);
-  });
-  dist.set(source, 0);
+function minCostPerMeter(mode: Mode, crowdOverrides?: Record<string, number>): number {
+  let minRatio = Infinity;
+  for (const e of EDGES) {
+    const w = edgeWeight(e, mode, crowdOverrides);
+    if (w === null) continue;
+    if (e.distance > 0) {
+      minRatio = Math.min(minRatio, w / e.distance);
+    } else {
+      minRatio = Math.min(minRatio, w);
+    }
+  }
+  return minRatio === Infinity ? 0 : minRatio;
+}
 
-  const visited = new Set<string>();
-  // simple O(V^2) priority loop — fine for small graphs
-  while (visited.size < NODES.length) {
-    let u: string | null = null;
-    let best = Infinity;
-    for (const [id, d] of dist) {
-      if (!visited.has(id) && d < best) {
-        best = d;
-        u = id;
+function heuristic(nodeId: string, destId: string, mode: Mode, ratio: number): number {
+  if (nodeId === destId) return 0;
+  const a = getNode(nodeId);
+  const b = getNode(destId);
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.hypot(dx, dy) * ratio;
+}
+
+function aStar(source: string, dest: string, mode: Mode, crowdOverrides?: Record<string, number>): string[] {
+  const adj = buildAdj(mode, crowdOverrides);
+  const heuristicRatio = minCostPerMeter(mode, crowdOverrides);
+
+  const gScore = new Map<string, number>();
+  const fScore = new Map<string, number>();
+  const cameFrom = new Map<string, string | null>();
+
+  NODES.forEach((n) => {
+    gScore.set(n.id, Infinity);
+    fScore.set(n.id, Infinity);
+    cameFrom.set(n.id, null);
+  });
+
+  gScore.set(source, 0);
+  fScore.set(source, heuristic(source, dest, mode, heuristicRatio));
+
+  const openSet = new Set<string>([source]);
+
+  while (openSet.size > 0) {
+    let current: string | null = null;
+    let bestF = Infinity;
+    for (const nodeId of openSet) {
+      const score = fScore.get(nodeId) ?? Infinity;
+      if (score < bestF) {
+        bestF = score;
+        current = nodeId;
       }
     }
-    if (u === null || best === Infinity) break;
-    if (u === dest) break;
-    visited.add(u);
+    if (current === null) break;
+    if (current === dest) break;
 
-    for (const { to, w } of adj.get(u) || []) {
-      if (visited.has(to)) continue;
-      const nd = best + w;
-      if (nd < dist.get(to)!) {
-        dist.set(to, nd);
-        prev.set(to, u);
+    openSet.delete(current);
+
+    const currentG = gScore.get(current) ?? Infinity;
+    for (const { to, w } of adj.get(current) || []) {
+      const tentativeG = currentG + w;
+      if (tentativeG < (gScore.get(to) ?? Infinity)) {
+        cameFrom.set(to, current);
+        gScore.set(to, tentativeG);
+        fScore.set(to, tentativeG + heuristic(to, dest, mode, heuristicRatio));
+        openSet.add(to);
       }
     }
   }
 
   const path: string[] = [];
   let cur: string | null = dest;
-  if (dist.get(dest) === Infinity) return [];
+  if ((gScore.get(dest) ?? Infinity) === Infinity) return [];
   while (cur) {
     path.unshift(cur);
-    cur = prev.get(cur) || null;
+    cur = cameFrom.get(cur) || null;
   }
   return path[0] === source ? path : [];
 }
@@ -132,11 +183,15 @@ function turnDirection(prev: NodeT, cur: NodeT, next: NodeT): string {
   return "Turn left";
 }
 
-function generateInstructions(path: string[]): string[] {
-  if (path.length < 2) return ["You are already at the destination."];
-  const out: string[] = [];
+function generateSteps(path: string[]): RouteStep[] {
+  if (path.length < 2) {
+    const node = getNode(path[0]);
+    return [{ text: "You are already at the destination.", floor: node.floor, kind: "arrival", nodeId: node.id }];
+  }
+
+  const out: RouteStep[] = [];
   const first = getNode(path[0]);
-  out.push(`Start at ${first.name}`);
+  out.push({ text: `Start at ${first.name}`, floor: first.floor, kind: "start", nodeId: first.id });
 
   for (let i = 0; i < path.length - 1; i++) {
     const a = getNode(path[i]);
@@ -144,36 +199,43 @@ function generateInstructions(path: string[]): string[] {
     const edge = findEdge(a.id, b.id)!;
 
     if (edge.type === "lift") {
-      out.push(`Take lift to floor ${b.floor}`);
+      out.push({ text: `Take lift to floor ${b.floor}`, floor: b.floor, kind: "transition", nodeId: b.id });
+      out.push({ text: `Now on Floor ${b.floor}`, floor: b.floor, kind: "transition", nodeId: b.id });
       continue;
     }
     if (edge.type === "stairs") {
-      out.push(`Take stairs to floor ${b.floor}`);
+      out.push({ text: `Take stairs to floor ${b.floor}`, floor: b.floor, kind: "transition", nodeId: b.id });
+      out.push({ text: `Now on Floor ${b.floor}`, floor: b.floor, kind: "transition", nodeId: b.id });
       continue;
     }
 
     if (i === 0) {
-      out.push(`Head toward ${b.name} (${edge.distance} m)`);
+      out.push({ text: `Head toward ${b.name} (${edge.distance} m)`, floor: b.floor, kind: "move", nodeId: b.id });
     } else {
       const prev = getNode(path[i - 1]);
       const prevEdge = findEdge(prev.id, a.id)!;
       if (prevEdge.type === "lift" || prevEdge.type === "stairs") {
-        out.push(`Head toward ${b.name} (${edge.distance} m)`);
+        out.push({ text: `Head toward ${b.name} (${edge.distance} m)`, floor: b.floor, kind: "move", nodeId: b.id });
       } else {
-        out.push(`${turnDirection(prev, a, b)} toward ${b.name} (${edge.distance} m)`);
+        out.push({
+          text: `${turnDirection(prev, a, b)} toward ${b.name} (${edge.distance} m)`,
+          floor: b.floor,
+          kind: "move",
+          nodeId: b.id,
+        });
       }
     }
   }
   const last = getNode(path[path.length - 1]);
-  out.push(`Arrive at ${last.name}`);
+  out.push({ text: `Arrive at ${last.name}`, floor: last.floor, kind: "arrival", nodeId: last.id });
   return out;
 }
 
 /** POST /get-route equivalent — fully local */
 export function getRoute(req: RouteRequest): RouteResponse {
-  const path = dijkstra(req.source, req.destination, req.mode);
+  const path = aStar(req.source, req.destination, req.mode, req.crowdOverrides);
   if (path.length === 0) {
-    return { path: [], instructions: ["No route available for this mode."], time: 0, distance: 0 };
+    return { path: [], steps: [], instructions: ["No route available for this mode."], time: 0, distance: 0 };
   }
   let time = 0;
   let distance = 0;
@@ -182,5 +244,6 @@ export function getRoute(req: RouteRequest): RouteResponse {
     time += e.time;
     distance += e.distance;
   }
-  return { path, instructions: generateInstructions(path), time, distance };
+  const steps = generateSteps(path);
+  return { path, steps, instructions: steps.map((step) => step.text), time, distance };
 }
